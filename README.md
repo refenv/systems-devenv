@@ -83,12 +83,12 @@ NVMe/TCP and NVMe/RDMA initiators and targets.
 🎛️ **ROCm 10 and the RDMA userspace**, from the Ubuntu archive: `rocm-dev`,
 `rocminfo` and `amd-smi`, rdma-core with the ionic provider, and perftest.
 
-🛠️ **nosi's curated toolset.** [nosi](https://github.com/safl/nosi), the
+🛠️ **nosi's curated toolset.** [nosi](https://github.com/refenv/nosi), the
 **N**iche **O**perating **S**ystem **I**mages, builds both images with its
 headless base: gcc, clang, rustc and zig, meson, ninja, cmake and cargo, gdb
 with gdb-dashboard and lldb, perf, strace and valgrind, nvme-cli and
 smartmontools, and the vfio, hugepages and IOMMU plumbing for user-space PCI
-drivers. See the [catalog](https://safl.dk/nosi).
+drivers. See the [catalog](https://refenv.github.io/nosi).
 
 ### 🔗 Together: data paths you can test without the hardware
 

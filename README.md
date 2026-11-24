@@ -164,6 +164,7 @@ is named for the machine it stands in for and where its devices come from.
 | `compute-node-emulated` | a switch on one root port, two downstream ports | NVMe at 0000:03:00.0 (QEMU), GPU (rocjitsu, vfio-user, plugged after boot) | `make qualify-compute` |
 | `storage-node-emulated` | eleven root ports, one per controller, at 0000:01:00.0 to 0000:0b:00.0 | ten NVMe controllers, one per command set and format (QEMU), and a KV one (vfu_kvssd, vfio-user) | `make qualify-pcie`, `make qualify-tcp` |
 | `rdma-node-emulated` | one root port | RDMA NIC whose far end is an NVMe/RDMA target (rocm-ernic, vfio-user) | `make qualify-rdma` |
+| `rdma-pair-emulated` | two guests, one root port each | an RDMA NIC in each guest (rocm-ernic, vfio-user), the NICs connected by rocm-ernic's TCP mesh and their Ethernet on one host bridge | `make qualify-rdma-pair` |
 | `storage-node-passthru` | one root port | the machine's own NVMe drive (vfio-pci) | `make qualify-passthru` |
 | `uefi-secureboot-tpm` | none; layered on another rig | UEFI firmware with Microsoft's Secure Boot keys, and TPM 2.0 (OVMF and swtpm) | |
 
@@ -271,6 +272,25 @@ flowchart TD
 </details>
 
 <details>
+<summary><code>rdma-pair-emulated</code></summary>
+
+```mermaid
+flowchart TD
+  subgraph qualify["guest qualify"]
+    nic0["nic0: RDMA NIC<br/>192.168.200.10"]:::vfiouser
+  end
+  subgraph peer["guest peer"]
+    nic1["nic1: RDMA NIC<br/>192.168.200.20"]:::vfiouser
+  end
+  nic0 -- "RDMA: rocm-ernic TCP mesh<br/>nic0's server the manager" --- nic1
+  nic0 -- "Ethernet: ernictap0" --> br["host bridge ernicbr0"]
+  nic1 -- "Ethernet: ernictap1" --> br
+  classDef vfiouser fill:#d6e6ff,stroke:#1565c0,color:#000
+```
+
+</details>
+
+<details>
 <summary><code>storage-node-passthru</code></summary>
 
 ```mermaid
@@ -340,6 +360,7 @@ Each check has a make target and a cijoe report of its own. All but
 | `make qualify-pcie` | the storage rig's controllers over PCIe, with the guest's vIOMMU and without |
 | `make qualify-tcp` | one controller through the kernel's NVMe/TCP target and back, and what xNVMe's tcp-spdk tests need of the guest |
 | `make qualify-rdma` | the guest's NVMe/RDMA initiator discovers the RDMA rig's target |
+| `make qualify-rdma-pair` | the two guests reach each other over IP, and move data between them over RDMA with SEND and RECV and with RDMA WRITE |
 | `make qualify-passthru` | the machine's own drive, passed through |
 
 ## Making a release

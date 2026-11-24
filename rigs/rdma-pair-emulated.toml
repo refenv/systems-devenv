@@ -1,0 +1,39 @@
+# rdma-pair-emulated: two guests, each with an emulated RDMA NIC, the NICs
+# connected to each other, for testing RDMA between two hosts without RDMA
+# hardware. Each NIC is rocm-ernic, whose server serves one guest; the servers
+# join in rocm-ernic's TCP mesh, nic0's as its manager, nic1's as a worker, and
+# carry the RDMA traffic between the guests over it. The mesh routes by GID, so
+# each server is told its guest's in ERNIC_TCP_GUEST_GIDS: the link-local one
+# the guest derives from the server's --mac, and the IPv4 one of the address the
+# qualify task gives the guest. Each NIC's Ethernet goes to a TAP on one host
+# bridge, which carries IP between the guests. The NICs need distinct MACs, as
+# the emulator's own is the same for every NIC. The addresses, MACs and GIDs
+# are those of rocm-ernic's two-guest system tests. See cijoe/scripts/rig.py for
+# the format.
+
+[rig.devices.nic0]
+provider = "vfio-user"
+socket = "{{ local.env.HOME }}/run/vfio-user-rocm-ernic-pair0.sock"
+tap = "ernictap0"
+bridge = "ernicbr0"
+server = "env ERNIC_TCP_GUEST_GIDS=fe80::a0:d1ff:fe00:1,192.168.200.10 /opt/rocm-ernic/bin/rocm-ernic --socket {socket} --backend tcp:manager:listen:18600 --mac 02:a0:d1:00:00:01 --tap {tap} --log-level info"
+
+[rig.devices.nic0.transport]
+netdev = "rocm-ernic0"
+guest_addr = "192.168.200.10/24"
+
+[rig.guests.peer.devices.nic1]
+provider = "vfio-user"
+socket = "{{ local.env.HOME }}/run/vfio-user-rocm-ernic-pair1.sock"
+tap = "ernictap1"
+bridge = "ernicbr0"
+server = "env ERNIC_TCP_GUEST_GIDS=fe80::a0:d1ff:fe00:2,192.168.200.20 /opt/rocm-ernic/bin/rocm-ernic --socket {socket} --backend tcp:worker:127.0.0.1:18600 --mac 02:a0:d1:00:00:02 --tap {tap} --log-level info"
+
+[rig.guests.peer.devices.nic1.transport]
+netdev = "rocm-ernic0"
+guest_addr = "192.168.200.20/24"
+
+# Two guests on a 16G runner: 4G each. Each keeps 4 CPUs, as with 2 the
+# guest's ionic_rdma fails to register the NIC's RDMA device, with -EINVAL
+[qemu.guests.qualify.system_args.kwa]
+m = "4G"

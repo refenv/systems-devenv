@@ -4,8 +4,8 @@ Kill a qemu guest and its rig's servers
 =======================================
 
 Kills the guest, as qemu.guest_kill does, then the servers of the rig's
-devices. The guest goes first, so it never sees its devices vanish. Does not
-fail when the guest or a server is not running.
+devices, then the TAPs of its NICs. The guest goes first, so it never sees its
+devices vanish. Does not fail when the guest or a server is not running.
 
 Retargetable: false
 -------------------
@@ -34,6 +34,8 @@ def main(args, cijoe):
 
     guest = Guest(cijoe, cijoe.config, guest_name)
     err = guest.kill()
-    rig.stop_servers(cijoe, rig.Topology.from_config(cijoe), guest.guest_path)
+    topo = rig.Topology.from_config(cijoe, guest_name)
+    rig.stop_servers(cijoe, topo, guest.guest_path)
+    rig.network_down(cijoe, topo)
 
     return err

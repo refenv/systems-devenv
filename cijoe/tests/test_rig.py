@@ -498,7 +498,9 @@ RIGS = sorted(RIGS_DIR.glob("*.toml"))
 
 @pytest.mark.parametrize("path", RIGS, ids=[p.stem for p in RIGS])
 def test_shipped_rigs_parse(path):
-    Topology(tomllib.loads(path.read_text())["rig"]).port_args()
+    shipped = tomllib.loads(path.read_text())["rig"]
+    for guest_name in [None, *shipped.get("guests", {})]:
+        Topology(rig.guest_rig(shipped, guest_name)).port_args()
 
 
 def test_storage_node_keeps_its_bdfs():
@@ -886,3 +888,94 @@ def test_socket_report_pairs_the_ends_of_a_socket(tmp_path):
     finally:
         a.close()
         b.close()
+
+
+TWO_GUESTS = {
+    "devices": {"nic0": {"provider": "vfio-user", "socket": "/s0", "server": "s"}},
+    "guests": {
+        "peer": {
+            "devices": {"nic1": {"provider": "vfio-user", "socket": "/s1", "server": "s"}}
+        }
+    },
+}
+
+
+def test_a_guest_the_rig_names_gets_its_own_devices(tmp_path):
+    cijoe = make_cijoe(tmp_path)
+    cijoe.config.options = {"rig": TWO_GUESTS}
+
+    def names(guest_name):
+        topo = rig.Topology.from_config(cijoe, guest_name)
+        return [dev["name"] for dev in topo.devices]
+
+    assert names("peer") == ["nic1"]
+    assert names("qualify") == ["nic0"], "a guest the rig does not name"
+    assert names(None) == ["nic0"]
+
+
+def test_a_tap_needs_a_bridge_on_a_vfio_user_nic_of_its_own():
+    nic = {"provider": "vfio-user", "socket": "/s", "server": "s {tap}"}
+
+    with pytest.raises(ValueError):
+        rig.Topology({"devices": {"n": {**nic, "tap": "t0"}}})
+    with pytest.raises(ValueError):
+        rig.Topology({"devices": {"n": {**nic, "provider": "qemu", "tap": "t0", "bridge": "b"}}})
+    with pytest.raises(ValueError):
+        rig.Topology(
+            {
+                "devices": {
+                    "a": {**nic, "tap": "t0", "bridge": "b"},
+                    "b": {**nic, "socket": "/s2", "tap": "t0", "bridge": "b"},
+                }
+            }
+        )
+
+
+def test_server_command_names_its_tap(tmp_path):
+    dev = {"name": "n", "provider": "vfio-user", "socket": "/s", "server": "srv --tap {tap}", "tap": "t0"}
+
+    assert Server(None, tmp_path, dev).command() == "srv --tap t0"
+
+
+def test_network_up_creates_each_tap_on_its_bridge():
+    nic = {"provider": "vfio-user", "socket": "/s", "server": "s", "bridge": "br0"}
+    topo = rig.Topology({"devices": {"n": {**nic, "tap": "t0"}, "q": {"provider": "qemu", "device": "nvme"}}})
+    cijoe = Recorder()
+
+    assert rig.network_up(cijoe, topo) == 0
+    assert cijoe.commands == [
+        "ip link show br0 >/dev/null 2>&1 || ip link add br0 type bridge",
+        "ip link set br0 up",
+        "ip link show t0 >/dev/null 2>&1 || ip tuntap add dev t0 mode tap",
+        "ip link set t0 master br0 up",
+    ]
+
+    assert rig.network_up(Recorder(err=1), topo) == 1, "a failed command fails it"
+
+
+@pytest.mark.parametrize("others, deleted", [([], True), (["t1"], False)])
+def test_network_down_keeps_a_bridge_another_tap_is_on(tmp_path, others, deleted):
+    brif = tmp_path / "class" / "net" / "br0" / "brif"
+    brif.mkdir(parents=True)
+    for other in others:
+        (brif / other).mkdir()
+    nic = {"provider": "vfio-user", "socket": "/s", "server": "s", "bridge": "br0", "tap": "t0"}
+    cijoe = Recorder()
+
+    rig.network_down(cijoe, rig.Topology({"devices": {"n": nic}}), sysfs=tmp_path)
+    assert cijoe.commands[0] == "ip link del t0 2>/dev/null || true"
+    assert ("ip link del br0 2>/dev/null || true" in cijoe.commands) == deleted
+
+
+def test_rdma_pair_rig_gives_each_guest_one_nic_on_one_bridge():
+    shipped = tomllib.loads((RIGS_DIR / "rdma-pair-emulated.toml").read_text())["rig"]
+    nic0 = Topology(rig.guest_rig(shipped)).device("nic0")
+    nic1 = Topology(rig.guest_rig(shipped, "peer")).device("nic1")
+
+    assert nic0["bridge"] == nic1["bridge"]
+    assert nic0["tap"] != nic1["tap"]
+    assert "tcp:manager:listen:18600" in nic0["server"]
+    assert "tcp:worker:127.0.0.1:18600" in nic1["server"]
+    for nic in (nic0, nic1):
+        ip = nic["transport"]["guest_addr"].split("/")[0]
+        assert f"ERNIC_TCP_GUEST_GIDS=" in nic["server"] and f",{ip} " in nic["server"]

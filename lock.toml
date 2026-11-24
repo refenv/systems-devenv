@@ -6,13 +6,13 @@
 # carries it, so a staged guest says what it was made from.
 
 # The guest's base, as the digest of its .img.gz layer, which is what cijoe's
-# system_imaging stages. ubuntu-2610-rocm:2026.W43, built from nosi e742b02.
+# system_imaging stages. ubuntu-2610-rocm:2026.W48, built from nosi a23994f.
 [system-imaging.images.nosi-base-x86_64]
-oras.url = "oras://ghcr.io/safl/nosi/ubuntu-2610-rocm@sha256:33a34476eee7f0ab9ced75c2c115c107e3f52bd5bd0084528b5079ac74019ad4"
+oras.url = "oras://ghcr.io/refenv/nosi/ubuntu-2610-rocm@sha256:cf4cbce553fd1fa39d69617a7bab58bf0e2564c2ef54e6e084adb402d6c2f4cc"
 
 # The host container's base, by manifest digest; it has stock QEMU and cijoe.
 [lock.nosi]
-host = "ghcr.io/safl/nosi/ubuntu-2604-docker@sha256:0c73b119fa5cd0b0388d45250b306039daf91be283ee8aed8e27be7deead2ab4"
+host = "ghcr.io/refenv/nosi/ubuntu-2604-docker@sha256:27146decdc033c31726df0af6f505203a7b4d8aefbd97b9a4b828f39dda6c7a6"
 
 # The guest's kernel, the release of the linux-image deb below
 [lock.kernel]

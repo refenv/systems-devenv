@@ -1,7 +1,7 @@
 version = 1
-SPDX-PackageName = "xnvme-devenv"
+SPDX-PackageName = "systems-devenv"
 SPDX-PackageSupplier = "Simon A. F. Lund <os@safl.dk>"
-SPDX-PackageDownloadLocation = "https://github.com/xnvme/xnvme-devenv"
+SPDX-PackageDownloadLocation = "https://github.com/refenv/systems-devenv"
 
 [[annotations]]
 path = "**"

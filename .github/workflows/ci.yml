@@ -55,16 +55,16 @@ jobs:
         echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
     - name: Build the host container
-      run: make host HOST_IMAGE=xnvme-devenv-host:local
+      run: make host HOST_IMAGE=systems-devenv-host:local
 
     - name: Derive the guest, then qualify it against the host's servers
       run: |
-        sudo mkdir -p /mnt/xnvme-devenv && sudo chown "$(id -u):$(id -g)" /mnt/xnvme-devenv
-        make ci HOST_IMAGE=xnvme-devenv-host:local WORKDIR=/mnt/xnvme-devenv
+        sudo mkdir -p /mnt/systems-devenv && sudo chown "$(id -u):$(id -g)" /mnt/systems-devenv
+        make ci HOST_IMAGE=systems-devenv-host:local WORKDIR=/mnt/systems-devenv
 
     - name: Collect the guest serial consoles and the server logs
       if: always()
-      run: make logs WORKDIR=/mnt/xnvme-devenv SUDO=sudo
+      run: make logs WORKDIR=/mnt/systems-devenv SUDO=sudo
 
     - uses: actions/upload-artifact@v6.0.0
       if: always()
@@ -102,18 +102,18 @@ jobs:
       run: |
         echo "$GH_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
         echo "$GH_TOKEN" | oras login ghcr.io -u "${{ github.actor }}" --password-stdin
-        docker tag xnvme-devenv-host:local "$HOST_IMAGE:$TAG"
+        docker tag systems-devenv-host:local "$HOST_IMAGE:$TAG"
         docker push "$HOST_IMAGE:$TAG"
-        cd /mnt/xnvme-devenv/home/system_imaging/disk
-        inputs="inputs-$(cat xnvme-devenv-guest-x86_64.inputs 2>/dev/null)"
-        if [ -s xnvme-devenv-guest-x86_64.reused ]; then
+        cd /mnt/systems-devenv/home/system_imaging/disk
+        inputs="inputs-$(cat systems-devenv-guest-x86_64.inputs 2>/dev/null)"
+        if [ -s systems-devenv-guest-x86_64.reused ]; then
           oras tag "$GUEST_IMAGE:$inputs" "$TAG"
         else
           # Written by the container, as root
           sudo cp "$GITHUB_WORKSPACE/lock.toml" .
-          sha256sum xnvme-devenv-guest-x86_64.img.gz | sudo tee xnvme-devenv-guest-x86_64.img.gz.sha256
-          oras push "$GUEST_IMAGE:$TAG" xnvme-devenv-guest-x86_64.img.gz \
-            xnvme-devenv-guest-x86_64.img.gz.sha256 lock.toml
+          sha256sum systems-devenv-guest-x86_64.img.gz | sudo tee systems-devenv-guest-x86_64.img.gz.sha256
+          oras push "$GUEST_IMAGE:$TAG" systems-devenv-guest-x86_64.img.gz \
+            systems-devenv-guest-x86_64.img.gz.sha256 lock.toml
           if [ "$inputs" != inputs- ]; then oras tag "$GUEST_IMAGE:$TAG" "$inputs"; fi
         fi
 
@@ -128,10 +128,10 @@ jobs:
         GH_TOKEN: ${{ github.token }}
       run: |
         layer=$(oras manifest fetch "$GUEST_IMAGE:$TAG" | jq -r \
-          '.layers[] | select(.annotations["org.opencontainers.image.title"] == "xnvme-devenv-guest-x86_64.img.gz") | .digest')
+          '.layers[] | select(.annotations["org.opencontainers.image.title"] == "systems-devenv-guest-x86_64.img.gz") | .digest')
         test -n "$layer"
         sudo tar -czf cijoe-reports.tar.gz -C cijoe $(cd cijoe && ls -d cijoe-output-*)
-        echo "${layer#sha256:}  xnvme-devenv-guest-x86_64.img.gz" > xnvme-devenv-guest-x86_64.img.gz.sha256
+        echo "${layer#sha256:}  systems-devenv-guest-x86_64.img.gz" > systems-devenv-guest-x86_64.img.gz.sha256
         cat > notes.md <<NOTES
         Host: \`$HOST_IMAGE:$TAG\`
 
@@ -143,4 +143,4 @@ jobs:
         the same inputs, and the qualification.
         NOTES
         gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --notes-file notes.md \
-          lock.toml xnvme-devenv-guest-x86_64.img.gz.sha256 cijoe-reports.tar.gz
+          lock.toml systems-devenv-guest-x86_64.img.gz.sha256 cijoe-reports.tar.gz

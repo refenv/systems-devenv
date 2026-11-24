@@ -4,7 +4,7 @@
 # of what CI runs, so a failure there reproduces with the same line.
 
 DOCKER ?= docker
-HOST_IMAGE ?= xnvme-devenv-host:local
+HOST_IMAGE ?= systems-devenv-host:local
 CIJOE_OUTPUT ?= cijoe-output
 # Images, guests and server sockets: some 45G, on a disk that has it
 WORKDIR ?= $(CURDIR)/.work
@@ -34,7 +34,7 @@ ci:
 
 # The ends of the guests' serial consoles and the servers' logs, after a ci run
 logs:
-	@for f in $(WORKDIR)/home/guests/xnvme-devenv-*/serial.output \
+	@for f in $(WORKDIR)/home/guests/systems-devenv-*/serial.output \
 		$(WORKDIR)/home/run/*.log; do \
 		echo "::group::$$f (tail)"; \
 		$(SUDO) tail -c 20000 "$$f" 2>/dev/null || echo "missing"; \
@@ -46,8 +46,8 @@ logs:
 # DERIVE_REUSED and DERIVE_INPUTS are configs/images.toml's derive.reused_path
 # and derive.inputs_path
 REUSE ?= 1
-DERIVE_REUSED = $(HOME)/system_imaging/disk/xnvme-devenv-guest-x86_64.reused
-DERIVE_INPUTS = $(HOME)/system_imaging/disk/xnvme-devenv-guest-x86_64.inputs
+DERIVE_REUSED = $(HOME)/system_imaging/disk/systems-devenv-guest-x86_64.reused
+DERIVE_INPUTS = $(HOME)/system_imaging/disk/systems-devenv-guest-x86_64.inputs
 derive:
 ifeq ($(REUSE),1)
 	cd cijoe && cijoe tasks/guest-reuse.yaml --monitor $(CIJOE_CONFIGS) --output $(CIJOE_OUTPUT)-guest-reuse

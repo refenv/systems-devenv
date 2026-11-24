@@ -1,6 +1,6 @@
 ---
 doc: |
-  Qualify an xnvme-devenv guest on the storage-node-emulated rig, over PCIe
+  Qualify a systems-devenv guest on the storage-node-emulated rig, over PCIe
 
   Boots the derived guest on the rig and checks that each of its NVMe
   controllers is at the BDF consumers' device lists name, the QEMU ones with
@@ -17,7 +17,7 @@ steps:
   uses: qemu.guest_initialize
   with:
     guest_name: qualify
-    system_image_name: xnvme-devenv-guest-x86_64
+    system_image_name: systems-devenv-guest-x86_64
 
 - name: guest_start
   uses: rig_guest_start

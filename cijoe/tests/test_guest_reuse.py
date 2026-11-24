@@ -93,7 +93,7 @@ def cijoe(tmp_path):
         },
         "system-imaging": {
             "images": {
-                "xnvme-devenv-guest-x86_64": {"disk": {"path": str(disk / "g.qcow2")}}
+                "systems-devenv-guest-x86_64": {"disk": {"path": str(disk / "g.qcow2")}}
             }
         },
     }

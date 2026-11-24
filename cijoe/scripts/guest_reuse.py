@@ -96,7 +96,7 @@ def main(args, cijoe):
         log.info(f"no guest made from these inputs, {url}: {exc}")
         return 0
 
-    disk = cijoe.getconf("system-imaging.images.xnvme-devenv-guest-x86_64.disk")
+    disk = cijoe.getconf("system-imaging.images.systems-devenv-guest-x86_64.disk")
     try:
         err = diskimage_from_oras(cijoe, {"oras": {"url": url}, "disk": disk})
     except Exception as exc:

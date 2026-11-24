@@ -1,7 +1,7 @@
 [project]
-name = "xnvme-devenv-cijoe"
+name = "systems-devenv-cijoe"
 version = "0.1.0"
-description = "CIJOE environment for the xnvme-devenv derive and qualification"
+description = "CIJOE environment for the systems-devenv derive and qualification"
 requires-python = ">=3.9"
 
 # As xNVMe pins it, so the scripts move between the two unchanged
@@ -16,11 +16,11 @@ dependencies = [
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
-# The scripts, as the cijoe package 'xnvme_devenv', for consumers' tasks to
-# use as 'xnvme_devenv.<script>'; this directory's own tasks find them here
+# The scripts, as the cijoe package 'systems_devenv', for consumers' tasks to
+# use as 'systems_devenv.<script>'; this directory's own tasks find them here
 [tool.setuptools]
-packages = ["cijoe.xnvme_devenv", "cijoe.xnvme_devenv.scripts"]
+packages = ["cijoe.systems_devenv", "cijoe.systems_devenv.scripts"]
 
 [tool.setuptools.package-dir]
-"cijoe.xnvme_devenv" = "."
-"cijoe.xnvme_devenv.scripts" = "scripts"
+"cijoe.systems_devenv" = "."
+"cijoe.systems_devenv.scripts" = "scripts"

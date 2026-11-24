@@ -32,7 +32,7 @@ def main(args, cijoe):
 
     guest = Guest(cijoe, cijoe.config, args.guest_name)
     qcow2 = Path(
-        cijoe.getconf("system-imaging.images.xnvme-devenv-guest-x86_64.disk.path")
+        cijoe.getconf("system-imaging.images.systems-devenv-guest-x86_64.disk.path")
     )
     gz = Path(cijoe.getconf("derive.gz_path"))
 

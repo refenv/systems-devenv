@@ -7,7 +7,7 @@ LOAD = """
 from cijoe.core.resources import get_resources
 scripts = get_resources()["scripts"]
 for name in ("rig_guest_start", "rig_guest_kill", "rig_device_plug", "rig_device_unplug", "rocm_ernic_peer_check"):
-    script = scripts[f"xnvme_devenv.{name}"]
+    script = scripts[f"systems_devenv.{name}"]
     script.load()  # its return value reports an error even when it loads
     assert script.func, name
 """

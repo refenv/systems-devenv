@@ -26,7 +26,7 @@ bin = "qemu-system-x86_64"
 
 # Sized as xNVMe's guests, for a GitHub-hosted runner
 [qemu.guests.derive]
-path = "{{ local.env.HOME }}/guests/xnvme-devenv-derive"
+path = "{{ local.env.HOME }}/guests/systems-devenv-derive"
 system_label = "x86_64"
 system_args.kwa = {cpu = "host", smp = 4, m = "6G", accel = "kvm"}
 system_args.raw = """\
@@ -38,7 +38,7 @@ system_args.tcp_forward = {host = 4200, guest = 22}
 # vfio-pci; it takes no PCI slot, so no rig's BDFs move. configs/no-iommu.toml
 # takes it away, for qualify-pcie-noiommu
 [qemu.guests.qualify]
-path = "{{ local.env.HOME }}/guests/xnvme-devenv-qualify"
+path = "{{ local.env.HOME }}/guests/systems-devenv-qualify"
 system_label = "x86_64"
 system_args.kwa = {cpu = "host", smp = 4, m = "6G", accel = "kvm"}
 system_args.raw = """\
@@ -52,19 +52,19 @@ system_label = "x86_64"
 disk.path = "{{ local.env.HOME }}/system_imaging/disk/nosi-base.qcow2"
 
 # What derive produces and qualify boots
-[system-imaging.images.xnvme-devenv-guest-x86_64]
+[system-imaging.images.systems-devenv-guest-x86_64]
 system_label = "x86_64"
-disk.path = "{{ local.env.HOME }}/system_imaging/disk/xnvme-devenv-guest.qcow2"
+disk.path = "{{ local.env.HOME }}/system_imaging/disk/systems-devenv-guest.qcow2"
 
 [derive]
-debs = "/tmp/xnvme-devenv/guest-debs"
-gz_path = "{{ local.env.HOME }}/system_imaging/disk/xnvme-devenv-guest-x86_64.img.gz"
+debs = "/tmp/systems-devenv/guest-debs"
+gz_path = "{{ local.env.HOME }}/system_imaging/disk/systems-devenv-guest-x86_64.img.gz"
 # Where guest_reuse looks for a guest made from the same inputs, the hash of
 # which it writes to inputs_path, and, when it staged one, its tag and layer
 # to reused_path, as the Makefile's DERIVE_REUSED names it
-image = "ghcr.io/xnvme/xnvme-devenv/guest-ubuntu-2610"
-inputs_path = "{{ local.env.HOME }}/system_imaging/disk/xnvme-devenv-guest-x86_64.inputs"
-reused_path = "{{ local.env.HOME }}/system_imaging/disk/xnvme-devenv-guest-x86_64.reused"
+image = "ghcr.io/refenv/systems-devenv/guest-ubuntu-2610"
+inputs_path = "{{ local.env.HOME }}/system_imaging/disk/systems-devenv-guest-x86_64.inputs"
+reused_path = "{{ local.env.HOME }}/system_imaging/disk/systems-devenv-guest-x86_64.reused"
 
 # The guest's name for the NIC's RDMA device; the servers are the rig's
 [rocm_ernic.transport]

@@ -1,9 +1,9 @@
-# xnvme-devenv
+# systems-devenv
 
-[![ci](https://github.com/xnvme/xnvme-devenv/actions/workflows/ci.yml/badge.svg)](https://github.com/xnvme/xnvme-devenv/actions/workflows/ci.yml)
-[![version](https://img.shields.io/github/v/tag/xnvme/xnvme-devenv?label=version&sort=semver)](https://github.com/xnvme/xnvme-devenv/tags)
-[![host](https://img.shields.io/badge/ghcr.io-host-blue?logo=docker)](https://github.com/orgs/xnvme/packages/container/package/xnvme-devenv%2Fhost)
-[![guest](https://img.shields.io/badge/ghcr.io-guest--ubuntu--2610-blue?logo=docker)](https://github.com/orgs/xnvme/packages/container/package/xnvme-devenv%2Fguest-ubuntu-2610)
+[![ci](https://github.com/refenv/systems-devenv/actions/workflows/ci.yml/badge.svg)](https://github.com/refenv/systems-devenv/actions/workflows/ci.yml)
+[![version](https://img.shields.io/github/v/tag/refenv/systems-devenv?label=version&sort=semver)](https://github.com/refenv/systems-devenv/tags)
+[![host](https://img.shields.io/badge/ghcr.io-host-blue?logo=docker)](https://github.com/orgs/refenv/packages/container/package/systems-devenv%2Fhost)
+[![guest](https://img.shields.io/badge/ghcr.io-guest--ubuntu--2610-blue?logo=docker)](https://github.com/orgs/refenv/packages/container/package/systems-devenv%2Fguest-ubuntu-2610)
 [![license](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](LICENSE)
 [![REUSE](https://img.shields.io/badge/REUSE-compliant-green.svg)](REUSE.toml)
 
@@ -12,6 +12,10 @@
 A storage and compute lab in two images. Boot a guest with an emulated GPU,
 an emulated RDMA NIC and a rack of NVMe controllers. Run it the same way on
 your own machine and in CI. No GPU, RDMA NIC or KV drive needed.
+
+systems-devenv continues [xnvme-devenv](https://github.com/xnvme/xnvme-devenv)
+from its v0.16.0. Images up to that version stay at
+`ghcr.io/xnvme/xnvme-devenv`; later ones are published here.
 
 ## ✨ What you get
 
@@ -151,7 +155,7 @@ own machine, is in xNVMe's documentation:
 
 A rig is what a guest boots with: its PCIe topology and the devices on it.
 Each rig is a cijoe config under `rigs/`, shipped in the host container at
-`/opt/xnvme-devenv/rigs`. `cijoe/scripts/rig.py` describes the format. A rig
+`/opt/systems-devenv/rigs`. `cijoe/scripts/rig.py` describes the format. A rig
 is named for the machine it stands in for and where its devices come from.
 
 | Rig | PCIe topology | Devices, and how each gets in | Qualified by |
@@ -295,11 +299,11 @@ flowchart LR
 
 The `rig_*` scripts in `cijoe/scripts` start a guest with a rig, plug and
 unplug its devices, and kill it with its servers. They install as the cijoe
-package `xnvme_devenv`, with the devbind and iommu they pass devices through
+package `systems_devenv`, with the devbind and iommu they pass devices through
 with. A consumer adds them to its cijoe with
-`pipx inject <venv> /opt/xnvme-devenv/cijoe` in the host container, or from
+`pipx inject <venv> /opt/systems-devenv/cijoe` in the host container, or from
 a checkout on any other host, and uses them as
-`xnvme_devenv.rig_guest_start` and so on.
+`systems_devenv.rig_guest_start` and so on.
 
 Once the guest is up, cijoe's `core.facts_gather` records its NVMe
 controllers, GPUs and NICs as facts under the guest's target name. The
@@ -359,15 +363,15 @@ is attached to it.
 A release is a commit on main that changes `VERSION`, with the subject
 `ver: bump to vX.Y.Z`. When CI on main is green and no tag `vX.Y.Z` exists
 yet, the same run publishes the host as
-`ghcr.io/xnvme/xnvme-devenv/host:vX.Y.Z` and the guest, with the lock it was
-made from, as `ghcr.io/xnvme/xnvme-devenv/guest-ubuntu-2610:vX.Y.Z` and
+`ghcr.io/refenv/systems-devenv/host:vX.Y.Z` and the guest, with the lock it was
+made from, as `ghcr.io/refenv/systems-devenv/guest-ubuntu-2610:vX.Y.Z` and
 `:inputs-<hash>`. A guest staged from an earlier release is tagged again
 rather than pushed. The run then creates the tag with a GitHub release that
 names both, with the lock, the guest image's sha256 and the cijoe reports
 attached. Nobody pushes a tag by hand.
 
 A consumer pins the host and the guest by the same version tag,
-`oras://ghcr.io/xnvme/xnvme-devenv/guest-ubuntu-2610:vX.Y.Z` for the guest,
+`oras://ghcr.io/refenv/systems-devenv/guest-ubuntu-2610:vX.Y.Z` for the guest,
 which cijoe stages once. The release names the guest's layer digest too, for
 pinning the bytes themselves.
 

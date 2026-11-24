@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Turn a running nosi guest into a systems-devenv guest
-====================================================
+=====================================================
 
 Installs the guest debs: our kernel, linux-image-7.3.0-xnvme<n> and its
 headers, and the DKMS packages, which build their modules for it here, once
@@ -9,7 +9,8 @@ per release rather than per test run. The stock kernel's headers go first, so
 DKMS builds for our kernel alone. Makes our kernel the one GRUB boots,
 reboots into it, and checks that it is running and that every DKMS module
 took the place of the kernel's own. Installs the guest checks,
-rocjitsu-guest-check and its sources, from guest/tests.
+rocjitsu-guest-check and its sources, from guest/tests, and the RDMA tools
+of ibverbs-utils and perftest, which tests between two guests run.
 
 Retargetable: false
 -------------------
@@ -73,7 +74,7 @@ def main(args, cijoe):
 
     err, _ = cijoe.run(
         "export DEBIAN_FRONTEND=noninteractive && apt-get -qy update && "
-        "apt-get -qy install --no-install-recommends liburing-dev "
+        "apt-get -qy install --no-install-recommends liburing-dev ibverbs-utils perftest "
         f"{' '.join(f'{REMOTE}/{d.name}' for d in debs)}"
     )
     if err:

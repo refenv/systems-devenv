@@ -17,7 +17,7 @@ CIJOE_CONFIGS = --config ../lock.toml --config configs/images.toml --config conf
 RIG ?= cluster-node-emulated
 RIG_CONFIGS = $(foreach r,$(RIG),--config $(if $(findstring /,$(r)),$(abspath $(r)),../rigs/$(r).toml))
 
-.PHONY: host ci logs derive qualify-cluster qualify-pcie qualify-pcie-iommu qualify-pcie-noiommu qualify-tcp qualify-rdma qualify-compute qualify-passthru test clean
+.PHONY: host ci logs derive qualify-cluster qualify-pcie qualify-pcie-iommu qualify-pcie-noiommu qualify-tcp qualify-rdma qualify-rdma-pair qualify-compute qualify-passthru test clean
 
 host:
 	cd cijoe && DOCKER="$(DOCKER)" HOST_IMAGE="$(HOST_IMAGE)" cijoe tasks/host.yaml --monitor \
@@ -30,7 +30,7 @@ ci:
 			mkdir -p "$$HOME/run"; \
 			export PATH=$$HOME/.local/bin:$$PATH; \
 			pipx install ./cijoe --include-deps --force >/dev/null; \
-			make derive qualify-cluster qualify-pcie qualify-tcp qualify-rdma qualify-compute RIG="$(RIG)"'
+			make derive qualify-cluster qualify-pcie qualify-tcp qualify-rdma qualify-rdma-pair qualify-compute RIG="$(RIG)"'
 
 # The ends of the guests' serial consoles and the servers' logs, after a ci run
 logs:
@@ -82,6 +82,10 @@ qualify-tcp:
 # The rdma-node-emulated rig's NVMe/RDMA target answers the guest's initiator
 qualify-rdma:
 	cd cijoe && cijoe tasks/qualify-rdma.yaml --monitor $(CIJOE_CONFIGS) --config ../rigs/rdma-node-emulated.toml --output $(CIJOE_OUTPUT)-qualify-rdma
+
+# The rdma-pair-emulated rig's two guests move data between them over RDMA
+qualify-rdma-pair:
+	cd cijoe && cijoe tasks/qualify-rdma-pair.yaml --monitor $(CIJOE_CONFIGS) --config ../rigs/rdma-pair-emulated.toml --output $(CIJOE_OUTPUT)-qualify-rdma-pair
 
 # The compute-node-emulated rig's GPU comes up and does I/O with its NVMe drive
 qualify-compute:

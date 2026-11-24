@@ -1,0 +1,113 @@
+---
+doc: |
+  Qualify two systems-devenv guests on the rdma-pair-emulated rig
+
+  Boots the guests qualify and peer, each with an emulated RDMA NIC, the NICs'
+  servers joined in rocm-ernic's TCP mesh and their Ethernet on one host
+  bridge. Gives each NIC its address and checks that the guests reach each
+  other over IP, then moves data between them over RDMA: SEND and RECV with
+  ibv_rc_pingpong, and RDMA WRITE with ib_write_bw, the server in peer and the
+  client in qualify. Both tools exchange their queue pair details over IP and
+  use GID index 1, the IPv4 one, as rocm-ernic's two-guest tests do. A server
+  in peer runs as a transient systemd unit, as the guest kills what a login
+  session leaves behind when it ends.
+
+steps:
+- name: peer_kill
+  uses: rig_guest_kill
+  with:
+    guest_name: peer
+
+- name: guest_kill
+  uses: rig_guest_kill
+  with:
+    guest_name: qualify
+
+- name: guest_initialize
+  uses: qemu.guest_initialize
+  with:
+    guest_name: qualify
+    system_image_name: systems-devenv-guest-x86_64
+
+- name: peer_initialize
+  uses: qemu.guest_initialize
+  with:
+    guest_name: peer
+    system_image_name: systems-devenv-guest-x86_64
+
+# qualify first, as its NIC's server is the mesh's manager, which the worker
+# serving peer's NIC connects to
+- name: guest_start
+  uses: rig_guest_start
+  with:
+    guest_name: qualify
+
+- name: peer_start
+  uses: rig_guest_start
+  target: peer
+  with:
+    guest_name: peer
+
+- name: root_unlock
+  uses: root_unlock
+
+- name: peer_root_unlock
+  uses: root_unlock
+  with:
+    root: peer
+    operator: peer_odus
+
+- name: guest_addr
+  run: |
+    ip addr replace {{ config.rig.devices.nic0.transport.guest_addr }} dev {{ config.rig.devices.nic0.transport.netdev }}
+    ip link set {{ config.rig.devices.nic0.transport.netdev }} up
+
+- name: peer_addr
+  target: peer
+  run: |
+    ip addr replace {{ config.rig.guests.peer.devices.nic1.transport.guest_addr }} dev {{ config.rig.guests.peer.devices.nic1.transport.netdev }}
+    ip link set {{ config.rig.guests.peer.devices.nic1.transport.netdev }} up
+
+- name: test_ip
+  run: |
+    ping -c 1 -w 30 {{ config.rig.guests.peer.devices.nic1.transport.guest_addr.split('/')[0] }}
+
+- name: peer_pingpong_server
+  target: peer
+  run: |
+    systemd-run --collect --unit=rdma-pair-pingpong -p StandardOutput=file:/tmp/rdma-pair-pingpong.log -p StandardError=append:/tmp/rdma-pair-pingpong.log ibv_rc_pingpong -d {{ config.rocm_ernic.transport.ibdev }} -g 1 -n 50
+    sleep 3
+
+# A connected queue pair that moves no data prints neither line
+- name: test_pingpong
+  run: |
+    timeout 60 ibv_rc_pingpong -d {{ config.rocm_ernic.transport.ibdev }} -g 1 -n 50 {{ config.rig.guests.peer.devices.nic1.transport.guest_addr.split('/')[0] }} 2>&1 | tee /tmp/rdma-pair-pingpong.log
+    grep -q 'bytes in' /tmp/rdma-pair-pingpong.log
+    grep -q 'iters in' /tmp/rdma-pair-pingpong.log
+
+- name: peer_write_bw_server
+  target: peer
+  run: |
+    systemd-run --collect --unit=rdma-pair-write-bw -p StandardOutput=file:/tmp/rdma-pair-write-bw.log -p StandardError=append:/tmp/rdma-pair-write-bw.log ib_write_bw -d {{ config.rocm_ernic.transport.ibdev }} -x 1 -s 65536 -n 100 -p 18516
+    sleep 3
+
+# The result line: message size, iterations, then the bandwidths
+- name: test_write_bw
+  run: |
+    timeout 60 ib_write_bw -d {{ config.rocm_ernic.transport.ibdev }} -x 1 -s 65536 -n 100 -p 18516 {{ config.rig.guests.peer.devices.nic1.transport.guest_addr.split('/')[0] }} 2>&1 | tee /tmp/rdma-pair-write-bw.log
+    grep -E '^ *65536 +100 ' /tmp/rdma-pair-write-bw.log
+
+- name: peer_logs
+  target: peer
+  run: |
+    cat /tmp/rdma-pair-pingpong.log /tmp/rdma-pair-write-bw.log
+
+- name: peer_shutdown
+  uses: rig_guest_kill
+  with:
+    guest_name: peer
+
+- name: guest_shutdown
+  uses: rig_guest_kill
+  with:
+    guest_name: qualify

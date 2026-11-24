@@ -41,7 +41,7 @@ def main(args, cijoe):
 
     try:
         return rig.plug(
-            guest.guest_path, rig.Topology.from_config(cijoe), args.device_name
+            guest.guest_path, rig.Topology.from_config(cijoe, guest_name), args.device_name
         )
     except KeyError:
         log.error(f"the rig has no device {args.device_name}")

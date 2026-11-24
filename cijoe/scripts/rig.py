@@ -85,6 +85,18 @@ show', and memlock unlimited. A rig leaves 'host' to the machine's own config,
 '[rig.devices.<name>] host = "0000:02:00.0"', and with it, optionally, the
 drive's 'serial'.
 
+A rig may boot more than one guest. '[rig.devices]' are the devices of every
+guest the rig does not name; '[rig.guests.<name>.devices]' are those of the
+guest '<name>', with ports and switches of its own under '[rig.guests.<name>]'
+as for '[rig]'. The rig_* scripts take the devices of the guest they are given.
+
+A 'vfio-user' NIC may have a 'tap', the host TAP its server attaches the NIC's
+Ethernet to, and with it a 'bridge', a host bridge the TAP joins, so guests on
+one bridge reach each other over IP. Before its server starts, the TAP is
+created, and the bridge too when missing; after the server stops, the TAP is
+deleted, and the bridge with it when no other TAP is on it. '{tap}' in 'server'
+is replaced by 'tap'.
+
 A device with 'boot = false' is not present at boot: its port and drives are,
 and 'plug()' adds it over QMP, as 'unplug()' removes it. Its children are
 plugged after it, onto its bus, which works only where that bus takes
@@ -114,10 +126,12 @@ class Topology:
     """The ports and devices a rig describes"""
 
     @classmethod
-    def from_config(cls, cijoe):
-        """The config's '[rig]', read past getconf(), which takes $RIG over it"""
+    def from_config(cls, cijoe, guest_name=None):
+        """The config's '[rig]', read past getconf(), which takes $RIG over it,
+        for the guest 'guest_name': its '[rig.guests.<name>]' when the rig has
+        one, the rig's own devices otherwise"""
 
-        return cls(cijoe.config.options.get("rig", {}))
+        return cls(guest_rig(cijoe.config.options.get("rig", {}), guest_name))
 
     def __init__(self, rig: dict):
         self.switches = rig.get("pcie", {}).get("switches", {})
@@ -162,6 +176,15 @@ class Topology:
         if len(set(taken)) != len(taken):
             raise ValueError(f"two devices on one port; ports {taken}")
 
+        for dev in self.devices:
+            if ("tap" in dev) != ("bridge" in dev):
+                raise ValueError(f"device {dev['name']}: a 'tap' needs a 'bridge'")
+            if "tap" in dev and dev["provider"] != "vfio-user":
+                raise ValueError(f"device {dev['name']}: a 'tap' is a vfio-user NIC's")
+        taps = [dev["tap"] for dev in self.devices if "tap" in dev]
+        if len(set(taps)) != len(taps):
+            raise ValueError(f"two devices on one TAP; TAPs {taps}")
+
     def device(self, name: str):
         """The device named 'name'; raises KeyError when there is none"""
 
@@ -170,6 +193,11 @@ class Topology:
                 return dev
 
         raise KeyError(name)
+
+    def tapped(self):
+        """The devices with a TAP, in the order they are listed"""
+
+        return [dev for dev in self.devices if "tap" in dev]
 
     def served(self):
         """The devices a server serves, in the order they are listed"""
@@ -298,6 +326,16 @@ class Topology:
         return args
 
 
+def guest_rig(rig: dict, guest_name=None):
+    """The part of 'rig' that describes the guest 'guest_name'"""
+
+    guests = rig.get("guests", {})
+    if guest_name is not None and guest_name in guests:
+        return guests[guest_name]
+
+    return {key: value for key, value in rig.items() if key != "guests"}
+
+
 def memory_args(guest_config: dict):
     """A shared memory backend, which a vfio-user server needs to map guest memory;
     sized as the guest's '-m', which qemu requires it to match"""
@@ -349,6 +387,7 @@ class Server:
             return str(pid)
 
         command = self.dev["server"].replace("{socket}", str(self.socket))
+        command = command.replace("{tap}", str(self.dev.get("tap", "")))
         try:
             return re.sub(r"\{pid:([^}]+)\}", pid_of, command)
         except LookupError as exc:
@@ -526,6 +565,39 @@ def stop_servers(cijoe, topo: Topology, guest_path: Path):
 
     for dev in reversed(topo.served()):
         Server(cijoe, guest_path, dev).stop()
+
+
+def network_up(cijoe, topo: Topology):
+    """Create the TAPs of the devices that have one, each on its bridge, and the
+    bridges that are missing; those already there are kept"""
+
+    for dev in topo.tapped():
+        tap, bridge = dev["tap"], dev["bridge"]
+        for command in [
+            f"ip link show {bridge} >/dev/null 2>&1 || ip link add {bridge} type bridge",
+            f"ip link set {bridge} up",
+            f"ip link show {tap} >/dev/null 2>&1 || ip tuntap add dev {tap} mode tap",
+            f"ip link set {tap} master {bridge} up",
+        ]:
+            err, _ = cijoe.run_local(command)
+            if err:
+                log.error(f"{dev['name']}: '{command}' failed: err({err})")
+                return err
+
+    return 0
+
+
+def network_down(cijoe, topo: Topology, sysfs=Path("/sys")):
+    """Delete the TAPs of the devices that have one, and each bridge that has no
+    other TAP on it, as another guest's NIC may still use it"""
+
+    for dev in topo.tapped():
+        cijoe.run_local(f"ip link del {dev['tap']} 2>/dev/null || true")
+
+    for bridge in {dev["bridge"] for dev in topo.tapped()}:
+        ports = sysfs / "class" / "net" / bridge / "brif"
+        if ports.is_dir() and not any(ports.iterdir()):
+            cijoe.run_local(f"ip link del {bridge} 2>/dev/null || true")
 
 
 def _proc_read(path: Path):

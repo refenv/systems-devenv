@@ -4,10 +4,11 @@ Start a qemu guest with its rig
 ===============================
 
 Binds the host devices the rig passes through to vfio-pci, creates the images
-the rig's devices name, starts their servers, in the order the devices are
-listed, then the guest with the rig's PCIe topology and the devices present at
-boot, and waits for it to reach its login prompt, or, for a guest printing none
-to serial, as Windows does, to answer over SSH. When it does neither, it logs
+the rig's devices name and the TAPs and bridges its NICs name, starts their
+servers, in the order the devices are listed, then the guest with the rig's
+PCIe topology and the devices present at boot, and waits for it to reach its
+login prompt, or, for a guest printing none to serial, as Windows does, to
+answer over SSH. When it does neither, it logs
 what QEMU and the device servers are doing before it fails. See rig.py for what
 a rig describes.
 
@@ -43,11 +44,12 @@ def main(args, cijoe):
         return errno.EINVAL
 
     guest = Guest(cijoe, cijoe.config, guest_name)
-    topo = rig.Topology.from_config(cijoe)
+    topo = rig.Topology.from_config(cijoe, guest_name)
 
     err = (
         rig.prepare_passthru(cijoe, topo)
         or rig.create_images(cijoe, topo)
+        or rig.network_up(cijoe, topo)
         or rig.start_servers(cijoe, topo, guest.guest_path)
     )
     if not err:
@@ -57,6 +59,7 @@ def main(args, cijoe):
     if err:
         log.error(f"starting the rig failed: err({err})")
         rig.stop_servers(cijoe, topo, guest.guest_path)
+        rig.network_down(cijoe, topo)
         return err
 
     if not guest.is_up(timeout=args.timeout) and cijoe.run("hostname")[0]:
